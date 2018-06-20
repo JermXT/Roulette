@@ -2,7 +2,8 @@ import cv2,random
 import numpy as np
 import math,time,sys
 
-DEBUG = True
+TIME =True
+DEBUG = False
 #sys.setrecursionlimit = 200000
 order = [[-1,0],[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1]]
 prev = [1,0]
@@ -42,7 +43,7 @@ def Closing(closing):
 
     closing = cv2.dilate(closing,rect,iterations = 10)
     closing = cv2.erode(closing,rect,iterations = 10)
-    cv2.imshow("dialate",closing)
+    #cv2.imshow("dialate",closing)
     return closing
     
 def Scan(img):
@@ -120,7 +121,7 @@ def findCircleCenter(img):
 def sectors(img, xc, yc, points):
     ###mebbe 3 -> 1 grayscale faster process?
     sector = np.zeros((len(img),len(img[0]),3), np.uint8)
-
+    
     left = True
     right = True
     
@@ -151,6 +152,7 @@ def sectors(img, xc, yc, points):
             borderPath(img, sector, points[i][0], points[i][1])
         #fill(img,sector,points[x][0], points[x][1],img[points[x][1]][points[x][0]])
     print right, left
+    sector = Closing(sector)
     return img,sector, xc,yc
 
 def borderPath(img, canvas,x,y):
@@ -202,10 +204,10 @@ def borderPath(img, canvas,x,y):
                 x=x+order[i%8][0]
                 y=y+order[i%8][1]
                 break
-    ctr = np.array(contour).reshape((-1,1,2)).astype(np.int32)
-    fit = cv2.fitEllipse(ctr)
-    canvas = Closing(canvas)
-    cv2.ellipse(canvas,fit,(0,255,0),2,cv2.LINE_AA)
+    ###! ellipse fitting must have sectors connecte
+    #ctr = np.array(contour).reshape((-1,1,2)).astype(np.int32)
+    #fit = cv2.fitEllipse(ctr)
+    
 
 ###not used
 def detectWhite(canvas,x,y):
@@ -243,7 +245,7 @@ def findSectors(img,x,y,radius,b,g,r):
     print colorDict
 
 def main():
-    start = time.time()
+
     
     #img = cv2.imread("Images/downWheelS.png")
     #img = cv2.imread("Images/IMG_0840.jpg")
@@ -253,20 +255,34 @@ def main():
     #b,g,r = avgBlueIntensity(img)
     #print(b,g,r)
     
+    start = time.time()
     close = Blur(img)
+    blurring = time.time()
     show = Scan(close)
+    kmeans =time.time()
     center,x,y,greenPoints = findCircleCenter(show)
+    roughcircle =time.time()
     img,sector, x,y = sectors(center,x,y,greenPoints)
-    
+    greensector = time.time()
     #findSectors(center,x,y,radius,b,g,r)
     end = time.time()
-    if(DEBUG):
-        print "time : ", end-start
-
+    if(TIME):
+        print "----------Timer----------"
+        print "filters : ", blurring-start
+        print "K-means : ", kmeans-blurring
+        print "rough calculations : ", roughcircle-kmeans
+        print "green sector : ", greensector-roughcircle
+        print "total time : ", end-start
+        print "----------Timer----------"
+    ###original image
     #cv2.imshow("original", img)
-    cv2.imshow("close",close)
+    ###blur applied
+    #cv2.imshow("close",close)
+    ###kmeans applied
     cv2.imshow("thing", show)
-    cv2.imshow("circle",center)
+    #rough center and dividing line(green) found
+    #cv2.imshow("circle",center)
+    #green sector found
     cv2.imshow("sector",sector)
     #cv2.imshow("final",)
     cv2.waitKey(0)
